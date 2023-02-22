@@ -1,0 +1,284 @@
+---
+title: "Job Placement Predictor"
+author: "Mutua Kilai"
+date: " "
+output: 
+   html_document:
+     toc: true
+     toc_float: true
+     theme: journal
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+![](image/logo.png)
+<h1 style = "color:blue;"> Description </h1>
+
+<h2 style = "color:blue;" > Problem Statement</h2>
+
+
+The growing need of educated and talented individuals, especially in developing countries, recruiting fresh graduates is a routine practice in organizations. Conventional recruiting methods and selections processes can be prone to errors and in order to optimize the whole process, some innovative methods are needed.
+
+
+<h2 style = "color:blue;"> Objective </h2>
+
+This project centers on building a predictive machine learning classification model that can predict the job placement status of individuals with historical data.
+
+The application will tell whether a person will be placed or not. 
+
+
+<h2 style = "color:green;"> Dataset </h2>
+
+The data source can be found [here](https://www.kaggle.com/datasets/ahsan81/job-placement-dataset)
+
+The columns of the data set are described below:
+
+- gender: Gender of the candidate
+- ssc_percentage: Senior Secondary exams percentage (10th grade)
+- ssc_board: Board of education for ssc exams
+- hsc_percentage: Higher secondary exams percentage
+- hsc_board: Board of education for hsc exams
+- hsc_subject: Subject of study for hsc
+- degree_percentage: Percentage of marks in undergrad degree
+- undergrad_degree: Undergrad degree majors
+- work_experience: Past work experience
+- emp_test_percentage: Aptitude test percentage
+- specialization: Postgrad degree majors
+- mba_percent: Percentage of marks in MBA degree
+- status: Status of placement. Placed/Not placed
+
+
+<h2 style = "color:green;"> Skills </h2>
+
+- Programming (R)
+- Data Wrangling (dplyr)
+- Data Analysis and visualization(ggplot2, tidyverse)
+- Machine Learning (caret)
+
+
+<h2 style = "color:green;"> Limitations </h2>
+
+- The data set used was not large enough and is not up to date
+- Improvement of the apps interface
+
+
+<h2 style = "color:green;"> Open to collaboration </h2>
+
+Still actively looking for deployment in a data science related role. 
+
+You can contact me through:
+
+- [twitter](https://twitter.com/SamKMutua)
+- [linkedin](https://www.linkedin.com/in/mutua-kilai-41b16115b/)
+
+
+<h1 style = "color:green;"> Using R to Model </h1>
+
+<strong> Importing the data </strong>
+
+We use the base read.csv to import the data. 
+
+
+```{r}
+Data <- read.csv("Job_Placement_Data.csv")
+
+library(dplyr)
+```
+
+
+The first few rows of the data are given by
+
+```{r}
+knitr::kable(head(Data))
+```
+
+
+<strong> Exploratory Data Analysis </strong>
+
+The visualization of the data is performed in order to have a feeling on the attributes of the data. The `ggplot2` package is used to do EDA.
+
+
+```{r}
+
+library(ggplot2)
+
+# visualization of status against gender
+
+ggplot(Data, aes(x = gender, fill = status)) + geom_bar(position = "dodge", width = 0.2)+ theme_bw()
+```
+
+
+Aptitude test distribution across status.
+
+
+```{r}
+ggplot(Data, aes(x = emp_test_percentage, color = status)) + geom_histogram(bins = 30) + theme_bw()
+```
+
+
+Work experience and status
+
+```{r}
+ggplot(Data, aes(x = work_experience, fill = status)) + geom_bar(position = "dodge", width = 0.2) + theme_bw()
+```
+
+
+Relationship between mba percentage score and amplititude test score.
+
+
+```{r}
+ggplot(Data, aes(x = mba_percent, y = emp_test_percentage,color = status)) + geom_point()+ theme_bw()
+```
+
+
+Other visualizations can be done depending on what attribute you want to explore.
+
+
+Now, we dig into the task of classification. We would like to predict if an applicant will be placed or not.
+
+
+<strong> Setting up the data </strong>
+
+We convert the characters to factors as follows.
+
+
+```{r}
+# convert characters to factors
+
+Data <- Data %>% 
+  mutate_if(is.character, as.factor)
+```
+
+
+<strong> Train Test split </strong>
+
+
+In this section we shall use the `caret` and `rsample` packages in R to do the tasks involved. 
+
+
+```{r, messag}
+library(caret) # for machine learning tasks
+
+library(rsample) # for splitting data
+```
+
+
+We split the data into two sets, the *train* and *test* sets as follows. 70\% of the data is used for training and 30\% is used for testing. 
+
+```{r}
+index <- initial_split(Data, prop = 0.7)
+
+# training data
+
+train <- training(index)
+
+# testing data
+
+test <- testing(index)
+```
+
+
+We now fit the following models to the data set and be able to select the best.
+
+- Random Forest model
+- Support Vector Machine classification model
+
+
+We will use 10 fold cross validation in order to estimate the accuracy of the model.
+
+We set a control for the data.
+
+
+```{r}
+
+# control
+
+my_control <- trainControl(
+  method = "cv",
+  number = 10,
+  repeats = 5
+)
+
+# metric
+
+metric <- "Accuracy"
+```
+
+We fit the models highlighted before to our training data.
+
+
+```{r}
+
+set.seed(123)
+
+# model random forest
+
+rf_model <- train(
+  status ~.,
+  data = train,
+  method = "ranger",
+  metric = metric,
+  trainControl = my_control
+)
+
+
+# model svm
+
+svm_model <- train(
+  status ~.,
+  data = train,
+  method = "svmRadial",
+  metric = metric,
+  trainControl = my_control
+)
+```
+
+
+
+```{r}
+set.seed(123)
+results <- resamples(list(svm =svm_model, rf = rf_model))
+dotplot(results)
+```
+
+
+
+We test the model to the test data in order to see the best model to use.
+
+<strong> Accuracy for Random Forest </strong>
+
+```{r}
+# test data - random forest
+
+pred_rf <- predict(rf_model, test[,-13])
+
+# confusion matrix
+
+confusionMatrix(pred_rf, test[["status"]], positive = "Placed")
+
+```
+
+
+<strong> Accuracy for SVM model </strong>
+
+
+```{r}
+pred_svm <- predict(svm_model, test[,-13])
+
+# confusion matrix
+
+confusionMatrix(pred_svm, test[["status"]])
+```
+
+Comparing SVM with linear radial and Random forest then we can conclude that SVM  is the better model using the test data. 
+
+
+
+<strong> The END </strong>
+
+To drop comments refer to my contacts shared at the beginning of the document.
+
+
+
